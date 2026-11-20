@@ -148,3 +148,14 @@ The example URLs and names above are placeholders for documentation only; do not
 JobsAuto now includes official government information portals for Germany (Make it in Germany, Opportunity Card, EU Blue Card, skilled-worker and research visas), Canada (Job Bank foreign candidates, Express Entry/Federal Skilled Worker, Provincial Nominee Program and Atlantic Immigration Program), plus the Netherlands, United Kingdom and Australia. These are informational starting points only; JobsAuto does not provide legal advice or guarantee visa eligibility. Verify current criteria with the destination government's immigration authority before paying fees or making decisions.
 
 Germany's Make it in Germany job listings are specifically described by the Federal Government as vacancies whose employers agreed to receive applications from foreign skilled workers. Canada's Job Bank foreign-candidate pages distinguish postings open to international candidates from postings restricted to Canadian citizens, permanent residents or existing work-permit holders. JobsAuto lists the official portals but does not infer that every vacancy on a country's general job boards sponsors visas.
+
+## Dedicated international search buttons (latest update)
+
+The dashboard now has two separate discovery actions:
+
+- **Search international jobs**: searches public indexed results for official Germany (Make it in Germany / Federal Employment Agency), Canada Job Bank, EURAXESS, UN Careers, UK and Australia ICT opportunities.
+- **Search PhD scholarships & research funding**: searches public indexed results for DAAD, EURAXESS, Bangladesh UGC, Chandigarh University, Mitacs and research-funding calls relevant to AI/ML, cybersecurity, networks, cloud, data science, data privacy and weather/climate data.
+
+These buttons use public Google News RSS search results as discovery leads. A lead is **not** an official verified vacancy or scholarship, and its search-result URL may not be the final application URL. Open the publisher and official provider page to verify the exact vacancy/call, application deadline, acceptance of Bangladeshi applicants, current-enrolled-PhD eligibility (for funding), and official description/application URL. Record those facts in the verification form. Only records explicitly verified with evidence, HTTPS official URLs, Bangladesh eligibility, and a deadline strictly more than seven days away appear in the eligible lists. Scholarship eligibility also requires `current_phd_eligible="yes"`.
+
+The search endpoints are `POST /api/discovery/jobs` and `POST /api/discovery/scholarships`; saved leads can be read from `GET /api/discovery/jobs` and `GET /api/discovery/scholarships`. Search is user-triggered; no new paid service, scheduler, or infrastructure is added. Existing application review, approval and separate submission confirmation safeguards remain unchanged.
