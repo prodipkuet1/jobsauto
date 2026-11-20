@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JobsAuto | Job Search Assistant</title>
+<style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#182230;background:#f4f7fb}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:28px 18px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:27px}.muted{color:#667085}.panel{background:white;border:1px solid #e4e7ec;border-radius:14px;padding:18px;margin:18px 0;box-shadow:0 3px 12px #1018280a}
+button{border:0;background:#155eef;color:white;padding:10px 15px;border-radius:9px;font-weight:650;cursor:pointer}button.secondary{background:#eef4ff;color:#1849a9}button.danger{background:#b42318}button:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.stat{background:#f8fafc;padding:14px;border-radius:10px}.stat strong{display:block;font-size:24px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid #eaecf0;vertical-align:top}th{font-size:12px;color:#667085;text-transform:uppercase}
+a{color:#155eef;text-decoration:none}.score{font-weight:700;color:#067647}.tag{font-size:12px;background:#ecfdf3;color:#027a48;border-radius:20px;padding:4px 8px}
+.notice{background:#fffaeb;color:#93370d;border:1px solid #fedf89;padding:12px;border-radius:10px}
+input,textarea{padding:10px;border:1px solid #d0d5dd;border-radius:8px;width:100%;font:inherit}input{max-width:460px}textarea{min-height:150px;resize:vertical}.actions{display:flex;gap:8px;flex-wrap:wrap}.draft{padding:16px 0;border-bottom:1px solid #eaecf0}.draft-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.small{font-size:13px}.status{display:inline-block;padding:4px 9px;border-radius:20px;background:#eef4ff;color:#1849a9;font-size:12px}
+@media(max-width:700px){table,tbody,tr,td{display:block}thead{display:none}tr{border-bottom:1px solid #eaecf0;padding:8px 0}td{border:0;padding:5px}.draft-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main class="wrap">
+<header><div><h1>JobsAuto</h1><div class="muted">AI-assisted job discovery and application preparation</div></div>
+<div class="actions"><button id="search">Search public job sources</button><button class="secondary" id="refresh">Refresh</button></div></header>
+<section class="panel">
+<h2>Private access</h2><p class="muted">Paste ADMIN_TOKEN from Render → your service → Environment. It stays in this browser tab's session storage.</p>
+<div class="actions"><input id="token" type="password" placeholder="Paste ADMIN_TOKEN from Render"><button id="saveToken">Unlock dashboard</button></div>
+</section>
+<section class="panel">
+<div class="notice"><b>Approval protection:</b> Every application requires your review and explicit approval. Manual submission opens the original platform for you. Authorized automated submission remains unavailable until a compliant provider integration is configured. JobsAuto never submits without your explicit confirmation.</div>
+<p class="muted">Starter version: public job feeds, relevance scoring, saved listings and editable application drafts. Login-protected sites are not scraped or auto-applied to.</p>
+<div class="stats"><div class="stat"><span class="muted">Saved jobs</span><strong id="count">—</strong></div><div class="stat"><span class="muted">Strong matches (70+)</span><strong id="strong">—</strong></div><div class="stat"><span class="muted">Application drafts</span><strong id="draftcount">—</strong></div></div>
+</section>
+<section class="panel"><h2>Your profile</h2><div id="profile" class="muted">Unlock to load profile.</div></section>
+<section class="panel"><h2>Matched jobs</h2><div id="message" class="muted">Unlock the dashboard to load listings.</div>
+<div style="overflow-x:auto"><table><thead><tr><th>Role / employer</th><th>Location</th><th>Source</th><th>Match</th><th>Actions</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section class="panel"><h2>Application drafts & submission</h2><p class="muted small">Edit the content, save it, then approve that exact version. Manual submission opens the original listing; you complete submission there and then record it here. Automated submission is disabled until an authorized integration exists.</p><div id="drafts" class="muted">No drafts yet.</div></section>
+</main>
+<script>
+'use strict';
+
+async function api(path, options = {}) {
+    const token = sessionStorage.getItem('jobsauto_token') || '';
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? {'Authorization': 'Bearer ' + token} : {}),
+        ...(options.headers || {})
+    };
+    const response = await fetch(path, {...options, headers});
+    if (!response.ok) {
+        let message = 'HTTP ' + response.status;
+        try { const data = await response.json(); message = data.detail || message; }
+        catch (_) {}
+        throw new Error(message);
+    }
+    return response.json();
+}
+
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[ch]);
+}
+
+function safeHttpUrl(value) {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' ? url.href : '#';
+    } catch (_) { return '#'; }
+}
+
+async function load() {
+    const message = document.getElementById('message');
+    message.textContent = 'Loading dashboard data...';
+    const [jobsData, draftsData, profile] = await Promise.all([
+        api('/api/jobs'), api('/api/drafts'), api('/api/profile')
+    ]);
+    const jobs = Array.isArray(jobsData) ? jobsData : [];
+    const drafts = Array.isArray(draftsData) ? draftsData : [];
+
+    document.getElementById('count').textContent = jobs.length;
+    document.getElementById('strong').textContent = jobs.filter(j => Number(j.score) >= 70).length;
+    document.getElementById('draftcount').textContent = drafts.length;
+    document.getElementById('profile').textContent = (profile.headline || '') + ' — ' + (profile.summary || '');
+    message.textContent = jobs.length
+        ? 'Sorted by estimated relevance. Verify each role and its requirements on the original listing.'
+        : 'No jobs saved yet. Click "Search public job sources".';
+
+    document.getElementById('jobs').innerHTML = jobs.map(job => `
+      <tr>
+        <td><b>${esc(job.title)}</b><br>${esc(job.company || 'Employer not listed')}<br>
+          <a href="${safeHttpUrl(job.url)}" target="_blank" rel="noopener noreferrer">Original listing ↗</a></td>
+        <td>${esc(job.location || 'Not specified')}</td><td>${esc(job.source || '')}</td>
+        <td class="score">${esc(job.score ?? 0)}/100</td>
+        <td><button class="secondary" onclick="createDraft(${Number(job.id)})">Prepare draft</button></td>
+      </tr>`).join('');
+
+    document.getElementById('drafts').innerHTML = drafts.length
+      ? drafts.map(renderDraft).join('')
+      : 'No drafts yet.';
+}
+
+function renderDraft(d) {
+    const approved = d.status === 'approved';
+    const submitted = d.status === 'submitted';
+    const link = safeHttpUrl(d.url);
+    return `
+    <article class="draft">
+      <div><b>${esc(d.title)}</b> — ${esc(d.company || '')}</div>
+      <p><span class="status">${esc(d.status || 'needs_review')}</span>
+      <span class="status">${esc(d.submission_status || 'not_submitted')}</span></p>
+      <p class="small muted">Job: ${esc(d.location || 'Location not specified')} · ${esc(d.salary || 'Compensation not listed')}</p>
+      <div class="draft-grid">
+        <label>Cover letter<textarea id="letter-${Number(d.id)}">${esc(d.cover_letter || '')}</textarea></label>
+        <label>Proposal<textarea id="proposal-${Number(d.id)}">${esc(d.proposal || '')}</textarea></label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="secondary" onclick="saveDraft(${Number(d.id)})" ${submitted ? 'disabled' : ''}>Save edits</button>
+        <button onclick="approveDraft(${Number(d.id)})" ${approved || submitted ? 'disabled' : ''}>Approve this version</button>
+        <button onclick="openManualSubmission(${Number(d.id)}, '${esc(link)}')" ${!approved || submitted ? 'disabled' : ''}>Submit Application (manual)</button>
+        <button class="secondary" onclick="tryAuthorizedSubmission(${Number(d.id)})" ${!approved || submitted ? 'disabled' : ''}>Authorized integration</button>
+        <button class="secondary" onclick="markSubmitted(${Number(d.id)})" ${d.submission_method !== 'manual' || submitted ? 'disabled' : ''}>I submitted it — record status</button>
+      </div>
+      <p class="small muted">Automated integration is fail-closed unless a supported provider integration is configured. The manual button only opens the original listing; it does not submit the application.</p>
+      <details><summary>View original job details</summary><p><a href="${link}" target="_blank" rel="noopener noreferrer">Open original listing</a></p></details>
+    </article>`;
+}
+
+async function createDraft(jobId) {
+    try {
+        await api('/api/drafts/' + jobId, {method:'POST'});
+        await load();
+        alert('Draft created. Review and edit it before approval.');
+    } catch (error) { alert('Could not create draft: ' + error.message); }
+}
+
+async function saveDraft(draftId) {
+    const cover_letter = document.getElementById('letter-' + draftId).value;
+    const proposal = document.getElementById('proposal-' + draftId).value;
+    try {
+        await api('/api/drafts/' + draftId, {
+            method:'PUT', body:JSON.stringify({cover_letter, proposal})
+        });
+        await load();
+        alert('Edits saved. The draft is back in needs-review status; approve the updated version before proceeding.');
+    } catch (error) { alert('Could not save edits: ' + error.message); }
+}
+
+async function approveDraft(draftId) {
+    const confirmation = confirm('I have reviewed this exact draft and approve it for the next step. This does NOT submit an application. Continue?');
+    if (!confirmation) return;
+    try {
+        await api('/api/drafts/' + draftId + '/approve', {method:'POST'});
+        await load();
+        alert('Draft approved. No application has been submitted.');
+    } catch (error) { alert('Approval failed: ' + error.message); }
+}
+
+async function openManualSubmission(draftId, originalUrl) {
+    if (!confirm('You are approving the next step for this application. JobsAuto will open the original job page only. You must review the platform form and click its final Submit button yourself. Continue?')) return;
+    try {
+        const result = await api('/api/drafts/' + draftId + '/submission', {
+            method:'POST',
+            body:JSON.stringify({method:'manual', confirmed:true})
+        });
+        await load();
+        const opened = window.open(originalUrl, '_blank', 'noopener');
+        if (!opened) alert('Your browser blocked the new tab. Use the original listing link in this draft.');
+        alert(result.message || 'Original listing opened. JobsAuto has not submitted anything.');
+    } catch (error) { alert('Could not open submission workflow: ' + error.message); }
+}
+
+async function tryAuthorizedSubmission(draftId) {
+    if (!confirm('Proceed to an authorized platform integration? This app currently has no provider integration configured, so the request should fail safely without submitting anything. Continue?')) return;
+    try {
+        await api('/api/drafts/' + draftId + '/submission', {
+            method:'POST',
+            body:JSON.stringify({method:'authorized_integration', confirmed:true})
+        });
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        await load().catch(console.error);
+    }
+}
+
+async function markSubmitted(draftId) {
+    if (!confirm('Confirm that you personally completed submission on the original platform? JobsAuto will only record your confirmation.')) return;
+    try {
+        const result = await api('/api/drafts/' + draftId + '/mark-submitted', {method:'POST'});
+        await load();
+        alert(result.message);
+    } catch (error) { alert('Could not record submission: ' + error.message); }
+}
+
+document.getElementById('token').value = sessionStorage.getItem('jobsauto_token') || '';
+document.getElementById('saveToken').onclick = async () => {
+    const token = document.getElementById('token').value.trim();
+    if (!token) { alert('Enter your ADMIN_TOKEN from Render.'); return; }
+    sessionStorage.setItem('jobsauto_token', token);
+    try { await load(); alert('JobsAuto unlocked.'); }
+    catch (error) { alert('Could not unlock: ' + error.message); }
+};
+document.getElementById('refresh').onclick = () => load().catch(e => alert(e.message));
+document.getElementById('search').onclick = async function () {
+    const button = this;
+    button.disabled = true; button.textContent = 'Searching...';
+    try {
+        const result = await api('/api/search', {method:'POST'});
+        const errors = Array.isArray(result.errors) ? result.errors : [];
+        alert('Added ' + Number(result.added || 0) + ' new listings.' + (errors.length ? '\n' + errors.join('\n') : ''));
+        await load();
+    } catch (error) { alert('Search failed: ' + error.message); }
+    finally { button.disabled = false; button.textContent = 'Search public job sources'; }
+};
+console.log('JobsAuto approval workflow initialized.');
+</script>
+</body>
+</html>
