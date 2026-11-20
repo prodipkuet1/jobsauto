@@ -65,3 +65,31 @@ If `ADMIN_TOKEN` is set, send `Authorization: Bearer <token>` for `/api/*`.
 
 ## Disclaimer
 This is an initial working scaffold, not a production-ready autonomous recruiter. Job source coverage is limited to the public feeds listed above. Matching scores are heuristic estimates and must be reviewed.
+
+
+## PhD scholarship discovery module
+
+JobsAuto includes a separate scholarship workflow for the configured profile:
+- Bangladeshi, currently enrolled full-time PhD scholar at Chandigarh University, India.
+- Computer Science and Engineering; research interests include AI, machine learning, deep learning, cybersecurity, computer networks, cloud computing, data science, data privacy and weather data.
+- Search uses public Google News RSS discovery queries. Results are leads only; they are not verified scholarships or official eligibility decisions.
+- Each lead shows detected IELTS and recommendation-letter wording. If either requirement is not stated, its documentation category remains Unverified. "Not stated" does not mean "not required".
+- Open the publisher/provider page and confirm that currently enrolled international PhD scholars are eligible, as well as the deadline, funding amount, IELTS/MOI rules and references.
+- Scholarship drafts are editable. Saving edits resets approval. Each exact draft requires individual approval.
+- Manual application opens the source page only. The user completes the form and final submission on the provider website, then confirms the status in JobsAuto.
+- Authorized automated scholarship submission is fail-closed until a compliant official provider integration is configured. No CAPTCHA or access-control bypass is implemented.
+
+### Scholarship API
+- `GET /api/scholarships/profile`
+- `GET /api/scholarships`
+- `POST /api/scholarships/search`
+- `POST /api/scholarships`
+- `GET /api/scholarship-drafts`
+- `POST /api/scholarship-drafts/{scholarship_id}`
+- `PUT /api/scholarship-drafts/{draft_id}`
+- `POST /api/scholarship-drafts/{draft_id}/approve`
+- `POST /api/scholarship-drafts/{draft_id}/submission`
+- `POST /api/scholarship-drafts/{draft_id}/mark-submitted`
+
+### Important data note
+The existing default SQLite database path is `/tmp/jobsauto.db`, which is ephemeral on many Render deployments. Configure a persistent database path/storage if you need records to survive instance replacement; persistent storage may incur cost. This update does not create or enable paid infrastructure.
