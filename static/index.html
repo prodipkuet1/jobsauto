@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JobsAuto | International Jobs & Migration Pathways</title>
+<style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#182230;background:#f4f7fb}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:28px 18px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:27px}.muted{color:#667085}.panel{background:white;border:1px solid #e4e7ec;border-radius:14px;padding:18px;margin:18px 0;box-shadow:0 3px 12px #1018280a}
+button{border:0;background:#155eef;color:white;padding:10px 15px;border-radius:9px;font-weight:650;cursor:pointer}button.secondary{background:#eef4ff;color:#1849a9}button.danger{background:#b42318}button:disabled{opacity:.5;cursor:not-allowed}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.stat{background:#f8fafc;padding:14px;border-radius:10px}.stat strong{display:block;font-size:24px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid #eaecf0;vertical-align:top}th{font-size:12px;color:#667085;text-transform:uppercase}
+a{color:#155eef;text-decoration:none}.score{font-weight:700;color:#067647}.tag{font-size:12px;background:#ecfdf3;color:#027a48;border-radius:20px;padding:4px 8px}
+.notice{background:#fffaeb;color:#93370d;border:1px solid #fedf89;padding:12px;border-radius:10px}
+input,textarea{padding:10px;border:1px solid #d0d5dd;border-radius:8px;width:100%;font:inherit}input{max-width:460px}textarea{min-height:150px;resize:vertical}.actions{display:flex;gap:8px;flex-wrap:wrap}.draft{padding:16px 0;border-bottom:1px solid #eaecf0}.draft-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.small{font-size:13px}.status{display:inline-block;padding:4px 9px;border-radius:20px;background:#eef4ff;color:#1849a9;font-size:12px}
+@media(max-width:700px){table,tbody,tr,td{display:block}thead{display:none}tr{border-bottom:1px solid #eaecf0;padding:8px 0}td{border:0;padding:5px}.draft-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main class="wrap">
+<header><div><h1>JobsAuto</h1><div class="muted">International job discovery, scholarship research and migration pathways</div></div>
+<div class="actions"><button id="search">Search public job sources</button><button class="secondary" id="refresh">Refresh</button></div></header>
+<section class="panel">
+<h2>Private access</h2><p class="muted">Paste ADMIN_TOKEN from Render → your service → Environment. It stays in this browser tab's session storage.</p>
+<div class="actions"><input id="token" type="password" placeholder="Paste ADMIN_TOKEN from Render"><button id="saveToken">Unlock dashboard</button></div>
+</section>
+<section class="panel">
+<div class="notice"><b>Approval protection:</b> Every application requires your review and explicit approval. Manual submission opens the original platform for you. Authorized automated submission remains unavailable until a compliant provider integration is configured. JobsAuto never submits without your explicit confirmation.</div>
+<p class="muted">Starter version: public job feeds, relevance scoring, saved listings and editable application drafts. Login-protected sites are not scraped or auto-applied to.</p>
+<div class="stats"><div class="stat"><span class="muted">Saved jobs</span><strong id="count">—</strong></div><div class="stat"><span class="muted">Strong matches (70+)</span><strong id="strong">—</strong></div><div class="stat"><span class="muted">Application drafts</span><strong id="draftcount">—</strong></div></div>
+</section>
+<section class="panel"><h2>Your profile</h2><div id="profile" class="muted">Unlock to load profile.</div></section>
+<section class="panel"><h2>General job-feed leads (not eligibility-verified)</h2><p class="muted small">These public feeds do not consistently publish application deadlines or foreign-nationality rules. Treat them as research leads only; they are not included in the verified international-opportunity shortlist below.</p><div id="message" class="muted">Unlock the dashboard to load listings.</div>
+<div style="overflow-x:auto"><table><thead><tr><th>Role / employer</th><th>Location</th><th>Source</th><th>Match</th><th>Actions</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section class="panel">
+<h2>International job opportunities</h2>
+<p class="muted small">Only verified openings with an application deadline more than 7 days away, explicit foreign-applicant eligibility, an official vacancy URL and a full description URL appear in this list. Listings without a stated deadline or nationality evidence are excluded from the eligible view.</p>
+<div class="actions"><button id="search-international-jobs">Search international jobs</button><button id="refresh-opportunities" class="secondary">Refresh eligible jobs</button><button id="show-job-review" class="secondary">Show verification queue</button></div>
+<div id="job-discovery-status" class="muted small">Search official and indexed sources for potential openings. Search leads are not verified until their original vacancy pages are checked.</div>
+<div id="job-discovery-leads"></div>
+<div id="opportunities" class="muted">Unlock to load eligible international jobs.</div>
+</section>
+<section class="panel">
+<h2>International PhD scholarships & research funding</h2>
+<p class="muted small">Scholarships must explicitly accept foreign applicants (Bangladesh), allow currently enrolled PhD researchers where relevant, and have a deadline more than 7 days away. Professor/teacher contacts are displayed only when supported by an official university profile and institutional contact details.</p>
+<div class="actions"><button id="search-phd-scholarships">Search PhD scholarships & research funding</button><button id="refresh-scholarships" class="secondary">Refresh eligible scholarships</button><button id="show-scholarship-review" class="secondary">Show verification queue</button></div>
+<div id="scholarship-discovery-status" class="muted small">Search research-funding sources for potential calls. Confirm the official call, Bangladesh eligibility, current-PhD eligibility, deadline and contact details before verification.</div>
+<div id="scholarship-discovery-leads"></div>
+<div id="scholarships" class="muted">Unlock to load scholarships.</div>
+</section>
+<section class="panel">
+<h2>Migration pathways for international professionals</h2>
+<p class="muted small">Official government immigration information for Germany, Canada and other destinations. These are pathway guides, not visa eligibility decisions or guarantees. JobsAuto should assess each route against your age, language scores, qualifications, work history, funds and any job offer.</p>
+<div id="migration-pathways" class="muted">Unlock to load official migration pathways.</div>
+</section>
+<section class="panel">
+<h2>Official job & scholarship portals</h2>
+<p class="muted small">These are official portal starting points, not individual verified openings. Open the portal, inspect a specific call, then add its exact official URLs and evidence to JobsAuto through the API. No portal-wide eligibility is assumed.</p>
+<div id="portals" class="muted">Unlock to load official portals.</div>
+</section>
+<section class="panel">
+<h2>Add a verified opportunity</h2>
+<p class="muted small">Paste one JSON record copied from an official vacancy/scholarship page after checking its deadline and foreign eligibility. Use <code>verification_status: "verified"</code> only after checking official evidence. For scholarships, include professor_name, professor_email, professor_profile_url, department and institution_url only when published by the institution.</p>
+<label>Record type<select id="record-type"><option value="opportunity">Job opportunity</option><option value="scholarship">Scholarship / research funding</option></select></label>
+<textarea id="record-json" style="min-height:190px" placeholder='{"title":"Example opening","deadline":"2026-12-20T23:59:00Z","foreign_eligibility":"yes","bangladesh_eligibility":"yes","eligibility_evidence":"Official call explicitly includes Bangladeshi nationals","official_url":"https://university.example/jobs/123","description_url":"https://university.example/jobs/123/details","verification_status":"verified"}'></textarea>
+<div class="actions"><button id="save-record">Save verified record</button></div><p id="record-message" class="small muted"></p>
+</section>
+<section class="panel"><h2>Application drafts & submission</h2><p class="muted small">Edit the content, save it, then approve that exact version. Manual submission opens the original listing; you complete submission there and then record it here. Automated submission is disabled until an authorized integration exists.</p><div id="drafts" class="muted">No drafts yet.</div></section>
+</main>
+<script>
+'use strict';
+
+async function api(path, options = {}) {
+    const token = sessionStorage.getItem('jobsauto_token') || '';
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? {'Authorization': 'Bearer ' + token} : {}),
+        ...(options.headers || {})
+    };
+    const response = await fetch(path, {...options, headers});
+    if (!response.ok) {
+        let message = 'HTTP ' + response.status;
+        try { const data = await response.json(); message = data.detail || message; }
+        catch (_) {}
+        throw new Error(message);
+    }
+    return response.json();
+}
+
+function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[ch]);
+}
+
+function safeHttpUrl(value) {
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' ? url.href : '#';
+    } catch (_) { return '#'; }
+}
+
+async function load() {
+    const message = document.getElementById('message');
+    message.textContent = 'Loading dashboard data...';
+    const [jobsData, draftsData, profile, opportunities, scholarships, portals] = await Promise.all([
+        api('/api/jobs'), api('/api/drafts'), api('/api/profile'),
+        api('/api/opportunities'), api('/api/scholarships'), api('/api/portals')
+    ]);
+    const jobs = Array.isArray(jobsData) ? jobsData : [];
+    const drafts = Array.isArray(draftsData) ? draftsData : [];
+    renderOpportunities(opportunities, 'opportunities');
+    renderScholarships(scholarships, 'scholarships');
+    renderPortals(portals);
+    renderMigrationPathways((portals || {}).migration_pathways || []);
+    const [jobLeads, scholarshipLeads] = await Promise.all([
+        api('/api/discovery/jobs').catch(() => []), api('/api/discovery/scholarships').catch(() => [])
+    ]);
+    renderDiscoveryLeads(jobLeads, 'job-discovery-leads');
+    renderDiscoveryLeads(scholarshipLeads, 'scholarship-discovery-leads');
+
+    document.getElementById('count').textContent = jobs.length;
+    document.getElementById('strong').textContent = jobs.filter(j => Number(j.score) >= 70).length;
+    document.getElementById('draftcount').textContent = drafts.length;
+    document.getElementById('profile').textContent = (profile.headline || '') + ' — ' + (profile.summary || '');
+    message.textContent = jobs.length
+        ? 'Sorted by estimated relevance. Verify each role and its requirements on the original listing.'
+        : 'No jobs saved yet. Click "Search public job sources".';
+
+    document.getElementById('jobs').innerHTML = jobs.map(job => `
+      <tr>
+        <td><b>${esc(job.title)}</b><br>${esc(job.company || 'Employer not listed')}<br>
+          <a href="${safeHttpUrl(job.url)}" target="_blank" rel="noopener noreferrer">Original listing ↗</a></td>
+        <td>${esc(job.location || 'Not specified')}</td><td>${esc(job.source || '')}</td>
+        <td class="score">${esc(job.score ?? 0)}/100</td>
+        <td><button class="secondary" onclick="createDraft(${Number(job.id)})">Prepare draft</button></td>
+      </tr>`).join('');
+
+    document.getElementById('drafts').innerHTML = drafts.length
+      ? drafts.map(renderDraft).join('')
+      : 'No drafts yet.';
+}
+
+function fmtDeadline(value) {
+    if (!value) return 'Deadline not stated';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
+}
+function renderOpportunities(rows, target) {
+    const el = document.getElementById(target);
+    if (!rows.length) { el.innerHTML = '<p>No qualifying verified jobs currently saved. Use the official portals and add records after checking the requirements.</p>'; return; }
+    el.innerHTML = rows.map(r => `<article class="draft"><b>${esc(r.title)}</b> — ${esc(r.employer || 'Employer not stated')}<p>${esc(r.location || 'Location not stated')} · ${esc(r.work_type || '')} · ${esc(r.compensation || 'Pay not stated')}</p><p><b>Apply by:</b> ${esc(fmtDeadline(r.deadline))}</p><p><b>Foreign applicants:</b> Yes · <b>Bangladesh:</b> Yes — ${esc(r.eligibility_evidence || '')}</p><p><a href="${safeHttpUrl(r.official_url)}" target="_blank" rel="noopener">Official vacancy / apply ↗</a> · <a href="${safeHttpUrl(r.description_url)}" target="_blank" rel="noopener">Full opening description ↗</a></p><small>Verified: ${esc(r.verified_at || 'date not recorded')} · ${esc(r.source_name || '')}</small></article>`).join('');
+}
+function renderScholarships(rows, target) {
+    const el = document.getElementById(target);
+    if (!rows.length) { el.innerHTML = '<p>No qualifying verified scholarships currently saved. Check the official funding portals and add calls that explicitly accept Bangladeshi applicants.</p>'; return; }
+    el.innerHTML = rows.map(r => `<article class="draft"><b>${esc(r.title)}</b> — ${esc(r.provider || 'Provider not stated')}<p>${esc(r.country || '')} · ${esc(r.degree_level || '')} · ${esc(r.funding || 'Funding not stated')}</p><p><b>Apply by:</b> ${esc(fmtDeadline(r.deadline))}</p><p><b>Foreign applicants:</b> Yes · <b>Bangladesh:</b> Yes — ${esc(r.eligibility_evidence || '')}</p><p><b>Currently enrolled PhD eligible:</b> ${esc(r.current_phd_eligible || 'unknown')} · <b>IELTS:</b> ${esc(r.ielts_requirement || 'unknown')} · <b>Recommendation:</b> ${esc(r.recommendation_requirement || 'unknown')}</p><p><a href="${safeHttpUrl(r.official_url)}" target="_blank" rel="noopener">Official scholarship page ↗</a> · <a href="${safeHttpUrl(r.description_url)}" target="_blank" rel="noopener">Full call / application details ↗</a></p><div><b>Professor / teacher contact</b><br>${esc(r.professor_name || 'Not published')} ${esc(r.professor_title || '')}<br>${esc(r.department || '')}<br>${r.professor_email ? `<a href="mailto:${esc(r.professor_email)}">${esc(r.professor_email)}</a>` : 'Email not published'}<br>${r.professor_profile_url ? `<a href="${safeHttpUrl(r.professor_profile_url)}" target="_blank" rel="noopener">Official faculty profile ↗</a>` : 'Official profile not published'}<br>${r.institution_url ? `<a href="${safeHttpUrl(r.institution_url)}" target="_blank" rel="noopener">Institution website ↗</a>` : ''}<br><small>Contact verification: ${esc(r.contact_verification || 'unknown')}</small></div></article>`).join('');
+}
+function renderPortals(data) {
+    const el = document.getElementById('portals');
+    const groups = Object.entries(data || {}).filter(([key]) => key !== 'migration_pathways');
+    el.innerHTML = groups.map(([group, items]) => `<h3>${group === 'jobs' ? 'Job portals' : 'Scholarship & research funding portals'}</h3><ul>${items.map(p => `<li><a href="${safeHttpUrl(p.url)}" target="_blank" rel="noopener">${esc(p.name)} ↗</a> — ${esc(p.scope)}</li>`).join('')}</ul>`).join('');
+}
+function renderMigrationPathways(items) {
+    const el = document.getElementById('migration-pathways');
+    if (!items.length) { el.textContent = 'Migration pathway directory unavailable.'; return; }
+    const byCountry = {};
+    items.forEach(item => {
+        const name = item.name || '';
+        const country = name.startsWith('Germany') ? 'Germany' : name.startsWith('Canada') ? 'Canada' : name.startsWith('Netherlands') ? 'Netherlands' : name.startsWith('United Kingdom') ? 'United Kingdom' : name.startsWith('Australia') ? 'Australia' : 'Other';
+        (byCountry[country] ||= []).push(item);
+    });
+    el.innerHTML = Object.entries(byCountry).map(([country, rows]) => `<h3>${esc(country)}</h3><ul>${rows.map(p => `<li><a href="${safeHttpUrl(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.name)} ↗</a> — ${esc(p.scope)}</li>`).join('')}</ul>`).join('');
+}
+async function loadReview(type) {
+    const endpoint = type === 'job' ? '/api/opportunities?eligible_only=false' : '/api/scholarships?eligible_only=false';
+    const rows = await api(endpoint);
+    const target = type === 'job' ? 'opportunities' : 'scholarships';
+    if (type === 'job') renderOpportunities(rows, target); else renderScholarships(rows, target);
+    if (!rows.length) document.getElementById(target).textContent = 'No records in the verification queue.';
+}
+
+function renderDraft(d) {
+    const approved = d.status === 'approved';
+    const submitted = d.status === 'submitted';
+    const link = safeHttpUrl(d.url);
+    return `
+    <article class="draft">
+      <div><b>${esc(d.title)}</b> — ${esc(d.company || '')}</div>
+      <p><span class="status">${esc(d.status || 'needs_review')}</span>
+      <span class="status">${esc(d.submission_status || 'not_submitted')}</span></p>
+      <p class="small muted">Job: ${esc(d.location || 'Location not specified')} · ${esc(d.salary || 'Compensation not listed')}</p>
+      <div class="draft-grid">
+        <label>Cover letter<textarea id="letter-${Number(d.id)}">${esc(d.cover_letter || '')}</textarea></label>
+        <label>Proposal<textarea id="proposal-${Number(d.id)}">${esc(d.proposal || '')}</textarea></label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="secondary" onclick="saveDraft(${Number(d.id)})" ${submitted ? 'disabled' : ''}>Save edits</button>
+        <button onclick="approveDraft(${Number(d.id)})" ${approved || submitted ? 'disabled' : ''}>Approve this version</button>
+        <button onclick="openManualSubmission(${Number(d.id)}, '${esc(link)}')" ${!approved || submitted ? 'disabled' : ''}>Submit Application (manual)</button>
+        <button class="secondary" onclick="tryAuthorizedSubmission(${Number(d.id)})" ${!approved || submitted ? 'disabled' : ''}>Authorized integration</button>
+        <button class="secondary" onclick="markSubmitted(${Number(d.id)})" ${d.submission_method !== 'manual' || submitted ? 'disabled' : ''}>I submitted it — record status</button>
+      </div>
+      <p class="small muted">Automated integration is fail-closed unless a supported provider integration is configured. The manual button only opens the original listing; it does not submit the application.</p>
+      <details><summary>View original job details</summary><p><a href="${link}" target="_blank" rel="noopener noreferrer">Open original listing</a></p></details>
+    </article>`;
+}
+
+async function createDraft(jobId) {
+    try {
+        await api('/api/drafts/' + jobId, {method:'POST'});
+        await load();
+        alert('Draft created. Review and edit it before approval.');
+    } catch (error) { alert('Could not create draft: ' + error.message); }
+}
+
+async function saveDraft(draftId) {
+    const cover_letter = document.getElementById('letter-' + draftId).value;
+    const proposal = document.getElementById('proposal-' + draftId).value;
+    try {
+        await api('/api/drafts/' + draftId, {
+            method:'PUT', body:JSON.stringify({cover_letter, proposal})
+        });
+        await load();
+        alert('Edits saved. The draft is back in needs-review status; approve the updated version before proceeding.');
+    } catch (error) { alert('Could not save edits: ' + error.message); }
+}
+
+async function approveDraft(draftId) {
+    const confirmation = confirm('I have reviewed this exact draft and approve it for the next step. This does NOT submit an application. Continue?');
+    if (!confirmation) return;
+    try {
+        await api('/api/drafts/' + draftId + '/approve', {method:'POST'});
+        await load();
+        alert('Draft approved. No application has been submitted.');
+    } catch (error) { alert('Approval failed: ' + error.message); }
+}
+
+async function openManualSubmission(draftId, originalUrl) {
+    if (!confirm('You are approving the next step for this application. JobsAuto will open the original job page only. You must review the platform form and click its final Submit button yourself. Continue?')) return;
+    try {
+        const result = await api('/api/drafts/' + draftId + '/submission', {
+            method:'POST',
+            body:JSON.stringify({method:'manual', confirmed:true})
+        });
+        await load();
+        const opened = window.open(originalUrl, '_blank', 'noopener');
+        if (!opened) alert('Your browser blocked the new tab. Use the original listing link in this draft.');
+        alert(result.message || 'Original listing opened. JobsAuto has not submitted anything.');
+    } catch (error) { alert('Could not open submission workflow: ' + error.message); }
+}
+
+async function tryAuthorizedSubmission(draftId) {
+    if (!confirm('Proceed to an authorized platform integration? This app currently has no provider integration configured, so the request should fail safely without submitting anything. Continue?')) return;
+    try {
+        await api('/api/drafts/' + draftId + '/submission', {
+            method:'POST',
+            body:JSON.stringify({method:'authorized_integration', confirmed:true})
+        });
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        await load().catch(console.error);
+    }
+}
+
+async function markSubmitted(draftId) {
+    if (!confirm('Confirm that you personally completed submission on the original platform? JobsAuto will only record your confirmation.')) return;
+    try {
+        const result = await api('/api/drafts/' + draftId + '/mark-submitted', {method:'POST'});
+        await load();
+        alert(result.message);
+    } catch (error) { alert('Could not record submission: ' + error.message); }
+}
+
+document.getElementById('token').value = sessionStorage.getItem('jobsauto_token') || '';
+document.getElementById('saveToken').onclick = async () => {
+    const token = document.getElementById('token').value.trim();
+    if (!token) { alert('Enter your ADMIN_TOKEN from Render.'); return; }
+    sessionStorage.setItem('jobsauto_token', token);
+    try { await load(); alert('JobsAuto unlocked.'); }
+    catch (error) { alert('Could not unlock: ' + error.message); }
+};
+document.getElementById('refresh').onclick = () => load().catch(e => alert(e.message));
+function renderDiscoveryLeads(rows, target) {
+    const el = document.getElementById(target);
+    if (!rows || !rows.length) { el.innerHTML = '<p class="small muted">No discovery leads found yet. Try searching again later.</p>'; return; }
+    el.innerHTML = '<h3>New discovery leads — verification required</h3>' + rows.map(r => `<article class="draft"><b>${esc(r.title)}</b><p class="small">Search source: ${esc(r.source_name || 'Search index')} · Published: ${esc(r.published_at || 'Not stated')}</p><p>${esc(r.summary || '')}</p><p><a href="${safeHttpUrl(r.result_url)}" target="_blank" rel="noopener noreferrer">Open search result ↗</a>${r.source_url ? ` · <a href="${safeHttpUrl(r.source_url)}" target="_blank" rel="noopener noreferrer">Publisher website ↗</a>` : ''}</p><small>Not verified. Check the actual employer/university page, deadline (more than 7 days remaining), Bangladeshi eligibility and exact application description URL before adding to the verified list.</small></article>`).join('');
+}
+async function runDiscovery(kind, buttonId, statusId, leadsId) {
+    const button = document.getElementById(buttonId), status = document.getElementById(statusId);
+    const original = button.textContent;
+    button.disabled = true; button.textContent = 'Searching sources...';
+    status.textContent = 'Searching public search indexes. Results will be marked as unverified leads until checked against official pages.';
+    try {
+        const result = await api('/api/discovery/' + kind, {method:'POST'});
+        renderDiscoveryLeads(result.leads || [], leadsId);
+        status.textContent = `${result.found || 0} leads found; ${result.added || 0} new. ${result.message || ''}`;
+        if (result.errors && result.errors.length) status.textContent += ' Search issues: ' + result.errors.join(' | ');
+    } catch (e) { status.textContent = 'Search failed: ' + e.message; }
+    finally { button.disabled = false; button.textContent = original; }
+}
+document.getElementById('search-international-jobs').onclick = () => runDiscovery('jobs', 'search-international-jobs', 'job-discovery-status', 'job-discovery-leads');
+document.getElementById('search-phd-scholarships').onclick = () => runDiscovery('scholarships', 'search-phd-scholarships', 'scholarship-discovery-status', 'scholarship-discovery-leads');
+
+document.getElementById('search').onclick = async function () {
+    const button = this;
+    button.disabled = true; button.textContent = 'Searching...';
+    try {
+        const result = await api('/api/search', {method:'POST'});
+        const errors = Array.isArray(result.errors) ? result.errors : [];
+        alert('Added ' + Number(result.added || 0) + ' new listings.' + (errors.length ? '\n' + errors.join('\n') : ''));
+        await load();
+    } catch (error) { alert('Search failed: ' + error.message); }
+    finally { button.disabled = false; button.textContent = 'Search public job sources'; }
+};
+document.getElementById('refresh-opportunities').onclick = () => api('/api/opportunities').then(rows => renderOpportunities(rows, 'opportunities')).catch(e => alert(e.message));
+document.getElementById('refresh-scholarships').onclick = () => api('/api/scholarships').then(rows => renderScholarships(rows, 'scholarships')).catch(e => alert(e.message));
+document.getElementById('show-job-review').onclick = () => loadReview('job').catch(e => alert(e.message));
+document.getElementById('show-scholarship-review').onclick = () => loadReview('scholarship').catch(e => alert(e.message));
+document.getElementById('save-record').onclick = async () => {
+    const type = document.getElementById('record-type').value;
+    const message = document.getElementById('record-message');
+    try {
+        const payload = JSON.parse(document.getElementById('record-json').value);
+        const result = await api(type === 'opportunity' ? '/api/opportunities' : '/api/scholarships', {method:'POST', body:JSON.stringify(payload)});
+        message.textContent = 'Saved. Current eligibility status: ' + (result.verification_status || 'needs_verification') + '. Only qualifying verified records appear in the eligible list.';
+        await load();
+    } catch (e) { message.textContent = 'Could not save: ' + e.message; }
+};
+console.log('JobsAuto international eligibility workflow initialized.');
+</script>
+</body>
+</html>
