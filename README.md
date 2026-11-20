@@ -1,0 +1,2 @@
+# jobsauto
+Automation agent
