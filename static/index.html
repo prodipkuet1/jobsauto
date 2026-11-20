@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JobsAuto | Job Search Assistant</title>
+<style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#182230;background:#f4f7fb}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:28px 18px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:27px}.muted{color:#667085}.panel{background:white;border:1px solid #e4e7ec;border-radius:14px;padding:18px;margin:18px 0;box-shadow:0 3px 12px #1018280a}
+button{border:0;background:#155eef;color:white;padding:10px 15px;border-radius:9px;font-weight:650;cursor:pointer}button.secondary{background:#eef4ff;color:#1849a9}button:disabled{opacity:.5}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.stat{background:#f8fafc;padding:14px;border-radius:10px}.stat strong{display:block;font-size:24px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid #eaecf0;vertical-align:top}th{font-size:12px;color:#667085;text-transform:uppercase}
+a{color:#155eef;text-decoration:none}.score{font-weight:700;color:#067647}.tag{font-size:12px;background:#ecfdf3;color:#027a48;border-radius:20px;padding:4px 8px}
+.notice{background:#fffaeb;color:#93370d;border:1px solid #fedf89;padding:12px;border-radius:10px}
+input{padding:10px;border:1px solid #d0d5dd;border-radius:8px;width:min(380px,100%)}.actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:700px){table,tbody,tr,td{display:block}thead{display:none}tr{border-bottom:1px solid #eaecf0;padding:8px 0}td{border:0;padding:5px}}
+</style>
+</head>
+<body><main class="wrap">
+<header><div><h1>JobsAuto</h1><div class="muted">AI-assisted job discovery and application preparation</div></div>
+<div class="actions"><button id="search">Search public job sources</button><button class="secondary" id="refresh">Refresh</button></div></header>
+<section class="panel">
+<h2>Private access</h2><p class="muted">After deployment, copy ADMIN_TOKEN from Render → your service → Environment, then paste it here. It stays in this browser tab's session storage.</p>
+<div class="actions"><input id="token" type="password" placeholder="Paste ADMIN_TOKEN from Render"><button id="saveToken">Unlock dashboard</button></div>
+</section>
+<section class="panel">
+<div class="notice"><b>Approval protection:</b> JobsAuto does not submit applications, send messages, accept contracts or make payments. Review and submit applications yourself on the original platform.</div>
+<p class="muted">Starter version: public job feeds, relevance scoring, saved listings and draft generation. LinkedIn, Upwork and other login-protected sites are not scraped or auto-applied to.</p>
+<div class="stats"><div class="stat"><span class="muted">Saved jobs</span><strong id="count">—</strong></div><div class="stat"><span class="muted">Strong matches (70+)</span><strong id="strong">—</strong></div><div class="stat"><span class="muted">Application drafts</span><strong id="draftcount">—</strong></div></div>
+</section>
+<section class="panel"><h2>Your profile</h2><div id="profile" class="muted">Loading…</div></section>
+<section class="panel"><h2>Matched jobs</h2><div id="message" class="muted">Loading listings…</div>
+<div style="overflow-x:auto"><table><thead><tr><th>Role / employer</th><th>Location</th><th>Source</th><th>Match</th><th>Actions</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section class="panel"><h2>Application drafts</h2><div id="drafts" class="muted">No drafts yet.</div></section>
+</main>
+<script>
+async function api(path,opts={}){const token=sessionStorage.getItem('jobsauto_token')||'';const r=await fetch(path,{...opts,headers:{'Content-Type':'application/json',...(token?{'Authorization':'Bearer '+token}:{}),...(opts.headers||{})}});if(!r.ok)throw new Error((await r.text()).slice(0,300));return r.json()}
+async function load(){
+ const [jobs,drafts,profile]=await Promise.all([api('/api/jobs'),api('/api/drafts'),api('/api/profile')]);
+ document.getElementById('count').textContent=jobs.length;document.getElementById('strong').textContent=jobs.filter(x=>x.score>=70).length;document.getElementById('draftcount').textContent=drafts.length;
+ document.getElementById('profile').textContent=profile.headline+' — '+profile.summary;
+ document.getElementById('message').textContent=jobs.length?'Sorted by estimated relevance. Verify every role and its requirements on the original listing.':'No jobs saved yet. Click “Search public job sources”.';
+ document.getElementById('jobs').innerHTML=jobs.map(j=>`<tr><td><b>${esc(j.title)}</b><br>${esc(j.company||'Employer not listed')}<br><a href="${esc(j.url)}" target="_blank" rel="noopener">Original listing ↗</a></td><td>${esc(j.location||'Not specified')}</td><td>${esc(j.source)}</td><td class="score">${j.score}/100</td><td><button class="secondary" onclick="draft(${j.id})">Prepare draft</button></td></tr>`).join('');
+ document.getElementById('drafts').innerHTML=drafts.length?drafts.map(d=>`<div style="padding:12px 0;border-bottom:1px solid #eaecf0"><b>${esc(d.title)}</b> — ${esc(d.company||'')}</br><span class="tag">${esc(d.status)}</span><p><a href="${esc(d.url)}" target="_blank" rel="noopener">Open original job</a></p><details><summary>View cover letter</summary><pre style="white-space:pre-wrap">${esc(d.cover_letter)}</pre></details><details><summary>View proposal</summary><pre style="white-space:pre-wrap">${esc(d.proposal)}</pre></details></div>`).join(''):'No drafts yet.';
+}
+function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function draft(id){try{await api('/api/drafts/'+id,{method:'POST'});await load();alert('Draft prepared. Review and personalize it before using.');}catch(e){alert(e.message)}}
+document.getElementById('token').value=sessionStorage.getItem('jobsauto_token')||'';document.getElementById('saveToken').onclick=()=>{sessionStorage.setItem('jobsauto_token',document.getElementById('token').value.trim());load().catch(e=>alert('Could not unlock. Check the token in Render Environment. '+e.message));};\ndocument.getElementById('refresh').onclick=()=>load().catch(e=>alert(e.message));
+document.getElementById('search').onclick=async()=>{let b=document.getElementById('search');b.disabled=true;b.textContent='Searching…';try{let r=await api('/api/search',{method:'POST'});alert(`Added ${r.added} new listings.`+(r.errors.length?'\n'+r.errors.join('\n'):''));await load()}catch(e){alert(e.message)}finally{b.disabled=false;b.textContent='Search public job sources'}};
+load().catch(e=>document.getElementById('message').textContent=e.message);
+</script></body></html>
