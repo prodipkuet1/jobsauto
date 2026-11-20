@@ -66,30 +66,85 @@ If `ADMIN_TOKEN` is set, send `Authorization: Bearer <token>` for `/api/*`.
 ## Disclaimer
 This is an initial working scaffold, not a production-ready autonomous recruiter. Job source coverage is limited to the public feeds listed above. Matching scores are heuristic estimates and must be reviewed.
 
+## International jobs and scholarship eligibility filters (v0.4)
 
-## PhD scholarship discovery module
+The update adds separate `opportunities` and `scholarships` tables and API views. A record appears in the **eligible** view only when all of these are true:
 
-JobsAuto includes a separate scholarship workflow for the configured profile:
-- Bangladeshi, currently enrolled full-time PhD scholar at Chandigarh University, India.
-- Computer Science and Engineering; research interests include AI, machine learning, deep learning, cybersecurity, computer networks, cloud computing, data science, data privacy and weather data.
-- Search uses public Google News RSS discovery queries. Results are leads only; they are not verified scholarships or official eligibility decisions.
-- Each lead shows detected IELTS and recommendation-letter wording. If either requirement is not stated, its documentation category remains Unverified. "Not stated" does not mean "not required".
-- Open the publisher/provider page and confirm that currently enrolled international PhD scholars are eligible, as well as the deadline, funding amount, IELTS/MOI rules and references.
-- Scholarship drafts are editable. Saving edits resets approval. Each exact draft requires individual approval.
-- Manual application opens the source page only. The user completes the form and final submission on the provider website, then confirms the status in JobsAuto.
-- Authorized automated scholarship submission is fail-closed until a compliant official provider integration is configured. No CAPTCHA or access-control bypass is implemented.
+- The stated deadline is more than 7 full days after the current UTC search time.
+- `foreign_eligibility` is explicitly `yes`, `bangladesh_eligibility` is explicitly `yes`, and an eligibility evidence note is supplied.
+- For scholarships, `current_phd_eligible` must also be `yes`, because this profile is already enrolled in a full-time PhD at Chandigarh University.
+- `verification_status` is `verified`.
+- Both `official_url` and `description_url` are valid HTTPS URLs.
 
-### Scholarship API
-- `GET /api/scholarships/profile`
-- `GET /api/scholarships`
-- `POST /api/scholarships/search`
-- `POST /api/scholarships`
-- `GET /api/scholarship-drafts`
-- `POST /api/scholarship-drafts/{scholarship_id}`
-- `PUT /api/scholarship-drafts/{draft_id}`
-- `POST /api/scholarship-drafts/{draft_id}/approve`
-- `POST /api/scholarship-drafts/{draft_id}/submission`
-- `POST /api/scholarship-drafts/{draft_id}/mark-submitted`
+Unknown deadlines, unknown nationality rules, expired/near-deadline calls, and unverified URLs are excluded. Existing Arbeitnow/Remotive job-feed records are retained as general leads because those feeds do not reliably provide closing dates or Bangladeshi applicant eligibility; they are not promoted into the verified shortlist automatically.
 
-### Important data note
-The existing default SQLite database path is `/tmp/jobsauto.db`, which is ephemeral on many Render deployments. Configure a persistent database path/storage if you need records to survive instance replacement; persistent storage may incur cost. This update does not create or enable paid infrastructure.
+### New endpoints
+- `GET /api/portals` — official job and scholarship portal directory.
+- `GET /api/opportunities` — verified jobs meeting the >7-day and foreign-eligibility filters.
+- `GET /api/opportunities?eligible_only=false` — all saved job opportunity records, including verification queue.
+- `POST /api/opportunities` — add/update an opportunity after checking its official call.
+- `GET /api/scholarships` — verified scholarship/research funding calls meeting the same filters.
+- `GET /api/scholarships?eligible_only=false` — all saved scholarship records, including verification queue.
+- `POST /api/scholarships` — add/update a scholarship after checking its official call and faculty contacts.
+
+### Scholarship record fields
+Use `professor_name`, `professor_title`, `professor_email`, `professor_profile_url`, `department`, `institution_url`, and `contact_verification`. Set `contact_verification` to `verified` only when the name, institutional email and faculty profile are published on official university pages. If a call has no named contact, leave the contact fields blank and state that no professor contact is published; never infer or fabricate an email address.
+
+### Important verification boundary
+The portal directory provides official starting pages, not proof that a particular opening is live or accepts Bangladeshi nationals. JobsAuto does not automatically certify a page's contents. The administrator must inspect the official call, record the exact closing date, confirm foreign-national eligibility and cite the wording in `eligibility_evidence` before marking a record `verified`. This avoids presenting aggregator snippets or guessed eligibility as verified facts.
+
+### Example job record
+```json
+{
+  "title": "Research Software Engineer",
+  "employer": "Example Institute",
+  "location": "Remote / country-specific",
+  "deadline": "2026-12-20T23:59:00Z",
+  "foreign_eligibility": "yes",
+  "bangladesh_eligibility": "yes",
+  "eligibility_evidence": "Official vacancy explicitly confirms Bangladeshi applicants may apply; work authorization conditions are stated on the employer page.",
+  "official_url": "https://example.edu/jobs/123",
+  "description_url": "https://example.edu/jobs/123/details",
+  "source_portal_url": "https://example.edu/careers",
+  "source_name": "Example Institute Careers",
+  "verification_status": "verified"
+}
+```
+
+### Example scholarship record
+```json
+{
+  "title": "Doctoral Research Mobility Grant",
+  "provider": "Example University",
+  "country": "Germany",
+  "degree_level": "Research stay for currently enrolled PhD candidates",
+  "deadline": "2026-12-20T23:59:00Z",
+  "foreign_eligibility": "yes",
+  "bangladesh_eligibility": "yes",
+  "eligibility_evidence": "Official call explicitly lists Bangladesh as an eligible country.",
+  "current_phd_eligible": "yes",
+  "ielts_requirement": "not_required",
+  "recommendation_requirement": "required",
+  "official_url": "https://example.edu/funding/123",
+  "description_url": "https://example.edu/funding/123/call",
+  "source_portal_url": "https://example.edu/funding",
+  "professor_name": "Dr Example",
+  "professor_title": "Professor",
+  "professor_email": "name@example.edu",
+  "professor_profile_url": "https://example.edu/people/example",
+  "department": "Computer Science",
+  "institution_url": "https://example.edu",
+  "contact_verification": "verified",
+  "verification_status": "verified",
+  "research_fit": "AI-based weather forecasting and privacy-preserving data analytics"
+}
+```
+
+The example URLs and names above are placeholders for documentation only; do not save them as real opportunities.
+
+
+## International migration pathway directory
+
+JobsAuto now includes official government information portals for Germany (Make it in Germany, Opportunity Card, EU Blue Card, skilled-worker and research visas), Canada (Job Bank foreign candidates, Express Entry/Federal Skilled Worker, Provincial Nominee Program and Atlantic Immigration Program), plus the Netherlands, United Kingdom and Australia. These are informational starting points only; JobsAuto does not provide legal advice or guarantee visa eligibility. Verify current criteria with the destination government's immigration authority before paying fees or making decisions.
+
+Germany's Make it in Germany job listings are specifically described by the Federal Government as vacancies whose employers agreed to receive applications from foreign skilled workers. Canada's Job Bank foreign-candidate pages distinguish postings open to international candidates from postings restricted to Canadian citizens, permanent residents or existing work-permit holders. JobsAuto lists the official portals but does not infer that every vacancy on a country's general job boards sponsors visas.
